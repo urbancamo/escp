@@ -1,0 +1,131 @@
+# LABEL : ARGS : EXPECTED HEX
+#
+# Every supported CLI option is exercised at least once below.
+# Multi-byte values (h-pos, v-pos, etc.) are tested with values that
+# also verify the low/high byte order.
+
+# --- single-byte control codes ---
+bs                 : --bs                                  : 08
+ht                 : --ht                                  : 09
+lf                 : --lf                                  : 0A
+vt                 : --vt                                  : 0B
+ff                 : --ff                                  : 0C
+cr                 : --cr                                  : 0D
+double-width-line  : --double-width-line                   : 0E
+cancel-dw-line     : --cancel-double-width-line            : 14
+condensed          : --condensed                           : 0F
+cancel-condensed   : --cancel-condensed                    : 12
+select             : --select                              : 11
+deselect           : --deselect                            : 13
+cancel             : --cancel                              : 18
+del                : --del                                 : 7F
+
+# --- printer state ---
+init               : --init                                : 1B 40
+init-short         : -i                                    : 1B 40
+reset              : --reset                               : 1B 40
+msb-0              : --msb-0                               : 1B 3D
+msb-1              : --msb-1                               : 1B 3E
+msb-cancel         : --msb-cancel                          : 1B 23
+
+# --- pitch ---
+pica               : --pica                                : 1B 50
+elite              : --elite                               : 1B 4D
+cpi-10             : --cpi 10                              : 1B 50
+cpi-12             : --cpi 12                              : 1B 4D
+cpi-15             : --cpi 15                              : 1B 67
+proportional-on    : --proportional on                     : 1B 70 01
+proportional-off   : --proportional off                    : 1B 70 00
+
+# --- fonts ---
+font-roman         : --font roman                          : 1B 6B 00
+font-sans          : --font sans                           : 1B 6B 01
+font-courier       : --font courier                        : 1B 6B 02
+font-prestige      : --font prestige                       : 1B 6B 03
+font-script        : --font script                         : 1B 6B 04
+font-ocr-b         : --font ocr-b                          : 1B 6B 05
+font-ocr-a         : --font ocr-a                          : 1B 6B 06
+font-orator-c      : --font orator-c                       : 1B 6B 07
+font-orator        : --font orator                         : 1B 6B 08
+font-datablock     : --font data-block                     : 1B 6B 0A
+font-datalarge     : --font data-large                     : 1B 6B 0B
+
+# --- quality ---
+quality-draft      : --quality draft                       : 1B 78 00
+quality-lq         : --quality lq                          : 1B 78 01
+
+# --- style attributes ---
+bold-on            : --bold on                             : 1B 45
+bold-off           : --bold off                            : 1B 46
+dstrike-on         : --double-strike on                    : 1B 47
+dstrike-off        : --double-strike off                   : 1B 48
+italic-on          : --italic on                           : 1B 34
+italic-off         : --italic off                          : 1B 35
+underline-on       : --underline on                        : 1B 2D 01
+underline-off      : --underline off                       : 1B 2D 00
+script-super       : --script super                        : 1B 53 00
+script-sub         : --script sub                          : 1B 53 01
+script-none        : --script none                         : 1B 54
+double-width-on    : --double-width on                     : 1B 57 01
+double-width-off   : --double-width off                    : 1B 57 00
+double-height-on   : --double-height on                    : 1B 77 01
+double-height-off  : --double-height off                   : 1B 77 00
+style-normal       : --style normal                        : 1B 71 00
+style-outline      : --style outline                       : 1B 71 01
+style-shadow       : --style shadow                        : 1B 71 02
+style-out-shadow   : --style outline-shadow                : 1B 71 03
+master             : --master 8                            : 1B 21 08
+
+# --- layout ---
+ls-1-6             : --line-spacing 1/6                    : 1B 32
+ls-1-8             : --line-spacing 1/8                    : 1B 30
+ls-180             : --line-spacing-180 30                 : 1B 33 1E
+ls-360             : --line-spacing-360 60                 : 1B 2B 3C
+ls-60              : --line-spacing-60 8                   : 1B 41 08
+feed-180           : --feed-180 24                         : 1B 4A 18
+reverse-feed-180   : --reverse-feed-180 12                 : 1B 6A 0C
+page-lines         : --page-lines 66                       : 1B 43 42
+page-inches        : --page-inches 11                      : 1B 43 00 0B
+skip-perf          : --skip-perf 6                         : 1B 4E 06
+no-skip-perf       : --no-skip-perf                        : 1B 4F
+left-margin        : --left-margin 8                       : 1B 6C 08
+right-margin       : --right-margin 80                     : 1B 51 50
+lpi-6              : --lpi 6                               : 1B 32
+lpi-8              : --lpi 8                               : 1B 30
+lpi-9              : --lpi 9                               : 1B 33 14
+
+# --- print position (multi-byte word order: low then high) ---
+h-pos-720          : --h-pos 720                           : 1B 24 D0 02
+h-rel-pos          : --h-rel 100                           : 1B 5C 64 00
+h-rel-neg          : --h-rel -1                            : 1B 5C FF FF
+v-pos-1024         : --v-pos 1024                          : 1B 28 56 02 00 00 04
+v-rel-256          : --v-rel 256                           : 1B 28 76 02 00 00 01
+v-rel-neg          : --v-rel -2                            : 1B 28 76 02 00 FE FF
+
+# --- character set ---
+upper-print        : --upper-print                         : 1B 36
+upper-control      : --upper-control                       : 1B 37
+country-3          : --country 3                           : 1B 52 03
+charset-1          : --charset 1                           : 1B 74 01
+
+# --- tabs and direction ---
+clear-htabs        : --clear-htabs                         : 1B 44 00
+clear-vtabs        : --clear-vtabs                         : 1B 42 00
+unidirectional-on  : --unidirectional on                   : 1B 55 01
+unidirectional-off : --unidirectional off                  : 1B 55 00
+uni-line           : --uni-line                            : 1B 3C
+justify-left       : --justify left                        : 1B 61 00
+justify-center     : --justify center                      : 1B 61 01
+justify-right      : --justify right                       : 1B 61 02
+justify-full       : --justify full                        : 1B 61 03
+
+# --- escapes that emit literal data ---
+text               : --text Hi                             : 48 69
+text-with-spaces   : --text "a b"                          : 61 20 62
+raw-simple         : --raw 1b40                            : 1B 40
+raw-spaced         : --raw "1B 40"                         : 1B 40
+raw-prefixed       : --raw "0x1B,0x40"                     : 1B 40
+
+# --- ordering: options emit in command-line order ---
+order-1            : --init --bold on --text Hi --bold off : 1B 40 1B 45 48 69 1B 46
+order-2            : --cpi 12 --italic on --text X         : 1B 4D 1B 34 58

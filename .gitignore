@@ -1,0 +1,15 @@
+# Build artefacts
+bin/
+*.o
+*.a
+
+# Test scratch files
+tests/*.actual
+tests/*.tmp
+tests/escp-test.*
+
+# macOS
+.DS_Store
+
+# JetBrains IDE
+.idea/

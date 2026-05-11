@@ -1,0 +1,233 @@
+.\" Manpage for escp.
+.\" Contact solutions@agilemindswork.uk to fix typos.
+.TH ESCP 1 "May 2026" "escp 1.0.0" "User Commands"
+.SH NAME
+escp \- emit Epson ESC/P and ESC/P 2 printer control sequences
+.SH SYNOPSIS
+.B escp
+.RI [ OPTIONS .\|.\|.]
+.SH DESCRIPTION
+.B escp
+writes Epson \fBESC/P\fR and \fBESC/P 2\fR control sequences to standard
+output, or to a file given with
+.BR -o .
+Each option is processed left-to-right, so the order of the resulting
+byte stream matches the order of the options on the command line.
+.PP
+The tool is intended for use in shell pipelines that turn plain text
+into a print-ready stream for an Epson-compatible 9- or 24-pin
+dot-matrix printer.  It was designed for the
+.B PSI PP-404
+in EPSON LQ 2550 emulation but works with any printer that speaks the
+standard Epson command set.
+.SH OPTIONS
+.SS General
+.TP
+.B \-o, \-\-output \fIFILE\fR
+Write the output bytes to \fIFILE\fR instead of standard output.
+.TP
+.B \-i, \-\-init, \-\-reset
+Emit \fBESC @\fR (1B 40) to initialise the printer.  Recommended as the
+first option in every invocation.
+.TP
+.B \-h, \-\-help
+Print a usage summary and exit.
+.TP
+.B \-V, \-\-version
+Print the program version and exit.
+.SS Single-byte control codes
+.TP
+.B \-\-bs \-\-ht \-\-lf \-\-vt \-\-ff \-\-cr \-\-del \-\-cancel
+Emit the corresponding ASCII control byte (BS, HT, LF, VT, FF, CR, DEL,
+CAN).
+.TP
+.B \-\-select  \-\-deselect
+Emit DC1 (11h) or DC3 (13h) to bring the printer on- or off-line.
+.TP
+.B \-\-condensed  \-\-cancel\-condensed
+Emit SI (0Fh) or DC2 (12h).
+.TP
+.B \-\-double\-width\-line  \-\-cancel\-double\-width\-line
+Emit SO (0Eh) or DC4 (14h) for one-line double-width.
+.SS Printer state
+.TP
+.B \-\-msb\-0, \-\-msb\-1, \-\-msb\-cancel
+Control the most-significant bit of subsequent data (\fBESC =\fR,
+\fBESC >\fR, \fBESC #\fR).
+.SS Pitch and font
+.TP
+.B \-\-pica, \-\-elite
+Select 10 cpi (\fBESC P\fR) or 12 cpi (\fBESC M\fR).
+.TP
+.B \-\-cpi \fIN\fR
+Shortcut for one of \-\-pica, \-\-elite or \fBESC g\fR (15 cpi).
+\fIN\fR must be 10, 12 or 15.
+.TP
+.B \-\-proportional \fRon|off
+Cancel or select proportional spacing (\fBESC p\fR).
+.TP
+.B \-\-font \fINAME\fR
+Select a font family by name.  Accepts: \fIroman\fR, \fIsans\fR
+(Letter Gothic), \fIcourier\fR, \fIprestige\fR, \fIscript\fR, \fIocr-a\fR,
+\fIocr-b\fR, \fIorator\fR, \fIorator-c\fR, \fIdata-block\fR,
+\fIdata-large\fR.
+.TP
+.B \-\-quality \fRdraft|lq
+Select draft or letter-quality printing (\fBESC x\fR).
+.SS Style attributes
+.TP
+.B \-\-bold \fRon|off
+Select or cancel emphasised printing (\fBESC E\fR / \fBESC F\fR).
+.TP
+.B \-\-double\-strike \fRon|off
+Select or cancel double-strike (\fBESC G\fR / \fBESC H\fR).
+.TP
+.B \-\-italic \fRon|off
+Italics on or off (\fBESC 4\fR / \fBESC 5\fR).
+.TP
+.B \-\-underline \fRon|off
+Underline on or off (\fBESC -\fR).
+.TP
+.B \-\-script \fRsuper|sub|none
+Superscript, subscript or cancel (\fBESC S\fR / \fBESC T\fR).
+.TP
+.B \-\-double\-width \fRon|off
+Multi-line double width (\fBESC W\fR).
+.TP
+.B \-\-double\-height \fRon|off
+Double-height printing (\fBESC w\fR).
+.TP
+.B \-\-style \fRnormal|outline|shadow|outline-shadow
+Character style (\fBESC q\fR).
+.TP
+.B \-\-master \fIN\fR
+Send the raw master-select bit-mask \fIN\fR (0\-255) via \fBESC !\fR.
+The individual bits select pitch and style according to Appendix F
+Table 5 of the printer manual.
+.SS Layout
+.TP
+.B \-\-line\-spacing \fR1/6|1/8
+Set the line spacing to 1/6\(dq (\fBESC 2\fR) or 1/8\(dq (\fBESC 0\fR).
+.TP
+.B \-\-line\-spacing\-60 \fIN\fR
+Set line spacing to \fIN\fR/60\(dq (\fBESC A\fR; 0\(en127).
+.TP
+.B \-\-line\-spacing\-180 \fIN\fR
+Set line spacing to \fIN\fR/180\(dq (\fBESC 3\fR; 0\(en255).
+.TP
+.B \-\-line\-spacing\-360 \fIN\fR
+Set line spacing to \fIN\fR/360\(dq (\fBESC +\fR; 0\(en255).
+.TP
+.B \-\-feed\-180 \fIN\fR, \-\-reverse\-feed\-180 \fIN\fR
+Perform a forward (\fBESC J\fR) or reverse (\fBESC j\fR) line feed of
+\fIN\fR/180\(dq.
+.TP
+.B \-\-page\-lines \fIN\fR
+Set the form length to \fIN\fR lines (\fBESC C\fR; 1\(en127).
+.TP
+.B \-\-page\-inches \fIN\fR
+Set the form length to \fIN\fR inches (\fBESC C NUL\fR; 1\(en22).
+.TP
+.B \-\-skip\-perf \fIN\fR, \-\-no\-skip\-perf
+Set or clear the skip-over-perforation distance (\fBESC N\fR / \fBESC O\fR).
+.TP
+.B \-\-left\-margin \fIN\fR, \-\-right\-margin \fIN\fR
+Set the left (\fBESC l\fR) and right (\fBESC Q\fR) margins, in columns
+of the current pitch.
+.TP
+.B \-\-lpi \fIN\fR
+Convenience option: 6 \(-> \fBESC 2\fR, 8 \(-> \fBESC 0\fR, otherwise
+\fBESC 3\fR with the calculated /180\(dq parameter.
+.SS Print position
+.TP
+.B \-\-h\-pos \fIN\fR
+Set the absolute horizontal print position to \fIN\fR/60\(dq from the
+left margin (\fBESC $\fR; \fIN\fR 0\(en65535).  The value is sent
+little-endian (low byte first).
+.TP
+.B \-\-h\-rel \fIN\fR
+Move the print head by \fIN\fR units relative to the current position
+(\fBESC \\\fR; signed 16-bit).
+.TP
+.B \-\-v\-pos \fIN\fR, \-\-v\-rel \fIN\fR
+ESC/P 2 absolute and relative vertical positioning (\fBESC ( V\fR and
+\fBESC ( v\fR).
+.SS Character set
+.TP
+.B \-\-upper\-print, \-\-upper\-control
+Treat code points 128\(en159 as printable characters
+(\fBESC 6\fR) or as control codes (\fBESC 7\fR).
+.TP
+.B \-\-country \fIN\fR
+Select the national character set \fIN\fR (\fBESC R\fR; 0\(en15).
+.TP
+.B \-\-charset \fIN\fR
+Select character table \fIN\fR (\fBESC t\fR; 0\(en3).
+.SS Tabs and direction
+.TP
+.B \-\-clear\-htabs, \-\-clear\-vtabs
+Clear all horizontal or vertical tab stops.
+.TP
+.B \-\-unidirectional \fRon|off, \-\-uni\-line
+Force unidirectional printing.  \fB\-\-uni\-line\fR applies to one line
+only (\fBESC <\fR).
+.TP
+.B \-\-justify \fRleft|center|right|full
+Set the text justification (\fBESC a\fR).
+.SS Inline data
+.TP
+.B \-\-text \fISTRING\fR
+Emit \fISTRING\fR verbatim.
+.TP
+.B \-\-raw \fIHEX\fR
+Emit the bytes encoded in \fIHEX\fR.  Spaces, commas, colons and
+\fB0x\fR prefixes are ignored, so all of \fB1b40\fR, \fB1B 40\fR and
+\fB0x1B,0x40\fR are equivalent.
+.SH EXIT STATUS
+.B escp
+exits 0 on success and 2 if a command-line argument is invalid, an
+output file cannot be opened, or a write fails.
+.SH EXAMPLES
+.PP
+Reset, print a bold header, body text, then form-feed:
+.PP
+.RS
+.nf
+{
+    escp --init --cpi 12
+    escp --bold on --text "INVOICE 0042" --bold off --lf --lf
+    cat invoice.txt
+    escp --ff
+} > /dev/lp0
+.fi
+.RE
+.PP
+Send arbitrary bytes (for example, the PP-404 eject-form sequence):
+.PP
+.RS
+.nf
+escp --raw "1B 5B 3C 73"
+.fi
+.RE
+.SH FILES
+.TP
+.I /usr/local/bin/escp
+The installed binary.
+.TP
+.I /usr/local/share/man/man1/escp.1
+This manual page.
+.SH SEE ALSO
+.BR lp (1),
+.BR lpr (1),
+.BR cat (1)
+.PP
+EPSON ESC/P Reference Manual (Seiko Epson Corp., 1997).
+.PP
+PSI PP-404 Operator's Manual, Appendix F.
+.SH BUGS
+Bit-image graphics commands (\fBESC K\fR, \fBESC L\fR, \fBESC Y\fR,
+\fBESC Z\fR, \fBESC *\fR), user-defined characters (\fBESC &\fR),
+macro definition and bar-code printing are not mapped to dedicated
+options.  Emit them with \fB\-\-raw\fR if you need them.
+.SH AUTHOR
+Mark Wickens <solutions@agilemindswork.uk>.

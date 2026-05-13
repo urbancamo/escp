@@ -13,3 +13,4 @@ tests/escp-test.*
 
 # JetBrains IDE
 .idea/
+/tests/prn.txt

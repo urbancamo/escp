@@ -1,0 +1,2 @@
+# H1: double-width on, double-height on, bold on, "Hi", LF, bold off, dh off, dw off
+1B 57 01  1B 77 01  1B 45  48 69  0A  1B 46  1B 77 00  1B 57 00

@@ -1,0 +1,10 @@
+# ESC @, ESC x 01 (LQ), ESC P (pica/10 cpi), ESC k 00 (roman), ESC 2 (6 lpi),
+# body "hi" LF, then trailing FF + ESC @
+1B 40
+1B 78 01
+1B 50
+1B 6B 00
+1B 32
+68 69  0A
+0C
+1B 40

@@ -1,0 +1,12 @@
+# UTF-8 → ISO-8859-1 via iconv:
+#  café        -> 63 61 66 E9      (é stays as Latin-1 0xE9)
+#  " "         -> 20
+#  em-dash —   -> 2D               (//TRANSLIT)
+#  " "         -> 20
+#  smart "     -> 22                (//TRANSLIT)
+#  hi          -> 68 69
+#  smart "     -> 22
+#  " "         -> 20
+#  中 (U+4E2D) -> 3F                (un-mappable, replaced with '?')
+#  LF
+63 61 66 E9   20   2D   20   22   68 69   22   20   3F   0A

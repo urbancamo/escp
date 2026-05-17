@@ -6,6 +6,10 @@ designed for the **PSI PP-404** but works with any printer that
 understands the standard Epson command set (LQ-series 24-pin printers,
 many label printers, RPI receipt printers, etc.).
 
+This repository also ships [`escpmd`](#escpmd--markdown-filter), a
+sibling filter that renders **Markdown** documents through the same
+code generator.
+
 The tool follows the classic Unix "do one thing well" philosophy: it
 writes bytes to stdout (or to a file) and is intended to live in a
 pipeline that turns plain text into a print-ready stream.
@@ -22,13 +26,14 @@ pipeline that turns plain text into a print-ready stream.
 
 ## Build and install
 
-There are no third-party dependencies — just a C99 compiler and
-`make`.
+The only third-party code is [md4c](https://github.com/mity/md4c),
+vendored under `src/vendor/md4c/` for `escpmd`.  Otherwise a C99
+compiler and `make` are enough.
 
 ```sh
-make                       # builds bin/escp
-make test                  # runs the byte-level test suite
-sudo make install          # installs to /usr/local/bin and man1
+make                       # builds bin/escp and bin/escpmd
+make test                  # runs both byte-level test suites
+sudo make install          # installs both binaries + man pages
 ```
 
 `PREFIX`, `DESTDIR`, `CC`, `CFLAGS`, `LDFLAGS` can all be overridden
@@ -87,6 +92,35 @@ PP-404's automatic sheet feeder):
 ```sh
 escp --raw "1B 5B 3C 73"
 ```
+
+## escpmd — Markdown filter
+
+`escpmd` is a companion tool that turns a Markdown document into the
+same kind of ESC/P byte stream `escp` emits.  It reads from stdin or
+from one or more files and writes to stdout (or to `-o FILE`):
+
+```sh
+escpmd README.md | lp -d pp404
+cat doc.md | escpmd --cpi 12 --quality lq > pp404.bin
+```
+
+By default `escpmd` emits an `ESC @` prologue, sets the body style
+(`--cpi`, `--font`, `--quality`, `--lpi`, optional margins) and ends
+the document with a form-feed.  Pass `--no-init` and/or `--no-ff` when
+you want to slot it into a pipeline that already manages the printer:
+
+```sh
+{
+    escp --init --left-margin 6 --cpi 12
+    escpmd --no-init --no-ff doc.md
+    escp --ff
+} > /dev/usb/lp0
+```
+
+Markdown is parsed with [md4c](https://github.com/mity/md4c), vendored
+under `src/vendor/md4c/`.  The full Markdown→ESC/P translation table is
+in [docs/escpmd-mapping.md](docs/escpmd-mapping.md); run `man escpmd`
+for the option reference.
 
 ## License
 

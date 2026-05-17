@@ -1,6 +1,6 @@
 #!/bin/zsh
   {
-      escp --init --cpi 12 --condensed
+      escp --init --cpi 12 --condensed --quality draft
       fold -s -w 132 "$1" \
         | iconv -f UTF-8 -t ASCII//TRANSLIT//IGNORE \
         | pr -w 264 -F -2 \

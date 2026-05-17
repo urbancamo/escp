@@ -1,0 +1,11 @@
+# Full prologue with ESC l 5 (left margin) and ESC Q 70 (right margin)
+# as hardware safety net, even though software wrap is also enabled (width 65).
+1B 40           # ESC @ init
+1B 78 01        # LQ quality
+1B 50           # pica (10 cpi)
+1B 6B 00        # roman font
+1B 32           # 1/6 lpi
+1B 6C 05        # ESC l 5  (left margin)
+1B 51 46        # ESC Q 70 (right margin)
+68 69 0A        # "hi" LF
+1B 40           # closing ESC @ (no FF because --no-ff)

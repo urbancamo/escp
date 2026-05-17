@@ -1,0 +1,8 @@
+# Bold spans a wrap: ESC E stays attached to the upcoming word and the
+# ESC F is held with the word it follows.
+# Line 1: aaaaa SP ESC_E bbbbb               (col 11 of 12)
+# Line 2: cccccc ESC_F SP ddddd              (col 12 of 12)
+# Line 3: eeeeee                             (wrap because adding " eeeeee" would overflow)
+61 61 61 61 61  20  1B 45  62 62 62 62 62  0A
+63 63 63 63 63 63  1B 46  20  64 64 64 64 64  0A
+65 65 65 65 65 65  0A

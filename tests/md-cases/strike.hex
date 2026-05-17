@@ -1,0 +1,2 @@
+# Strikethrough has no ESC/P equivalent: we render with underline.
+1B 2D 01  68 69  1B 2D 00  0A

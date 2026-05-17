@@ -1,0 +1,7 @@
+# Margins drive software width too (14 - 0 = 14).
+# But hardware margins are STILL emitted as a safety net — except this
+# fixture uses --no-init which suppresses the prologue, so no ESC l/Q.
+#   line 1: aaaa SP bbbb SP cccc    (14 cols)
+#   line 2: dddd SP eeee            (9 cols)
+61 61 61 61 20 62 62 62 62 20 63 63 63 63  0A
+64 64 64 64 20 65 65 65 65  0A

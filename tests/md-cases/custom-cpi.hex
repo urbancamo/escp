@@ -1,0 +1,8 @@
+# Init prologue with --cpi 12 --quality draft --font courier --lpi 8
+1B 40
+1B 78 00
+1B 4D
+1B 6B 02
+1B 30
+68 69  0A
+1B 40

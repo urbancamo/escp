@@ -11,25 +11,25 @@
  * shell pipeline:
  *
  *     escp --init --bold on --cpi 12 < text.txt | lp -d matrix
+ *
+ * All ESC/P knowledge lives in escp_codes.c; this file is only the
+ * command-line front end.
  */
 
 #define _POSIX_C_SOURCE 200809L
 
+#include "escp_codes.h"
+
 #include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
-#include <limits.h>
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define PROG_NAME    "escp"
-#define PROG_VERSION "1.0.0"
-
-#define ESC 0x1B
-#define NUL 0x00
+#define PROG_VERSION "1.1.0"
 
 static FILE *out = NULL;
 
@@ -42,24 +42,6 @@ static void die(const char *fmt, ...)
     va_end(ap);
     fputc('\n', stderr);
     exit(2);
-}
-
-static void emit(const unsigned char *bytes, size_t n)
-{
-    if (fwrite(bytes, 1, n, out) != n)
-        die("write failed: %s", strerror(errno));
-}
-
-static void emit1(unsigned char b)               { emit(&b, 1); }
-static void emit2(unsigned char a, unsigned char b)
-{
-    unsigned char buf[2] = { a, b };
-    emit(buf, 2);
-}
-static void emit3(unsigned char a, unsigned char b, unsigned char c)
-{
-    unsigned char buf[3] = { a, b, c };
-    emit(buf, 3);
 }
 
 static long parse_long(const char *s, long lo, long hi, const char *name)
@@ -76,141 +58,16 @@ static long parse_long(const char *s, long lo, long hi, const char *name)
 
 static int parse_on_off(const char *s, const char *name)
 {
-    if (strcmp(s, "on") == 0 || strcmp(s, "1") == 0)  return 1;
+    if (strcmp(s, "on")  == 0 || strcmp(s, "1") == 0) return 1;
     if (strcmp(s, "off") == 0 || strcmp(s, "0") == 0) return 0;
     die("%s: expected 'on' or 'off', got '%s'", name, s);
     return 0;
-}
-
-/* Emit an ESC/P2 4-byte parameter prefix: ESC ( cmd 02 00, then nL nH */
-static void emit_escp2_word(unsigned char cmd, long value)
-{
-    unsigned char buf[7];
-    buf[0] = ESC;
-    buf[1] = '(';
-    buf[2] = cmd;
-    buf[3] = 0x02;
-    buf[4] = 0x00;
-    buf[5] = (unsigned char)(value & 0xFF);
-    buf[6] = (unsigned char)((value >> 8) & 0xFF);
-    emit(buf, sizeof buf);
-}
-
-/* Emit ESC c nL nH for ESC $ and ESC \ */
-static void emit_word(unsigned char cmd, long value)
-{
-    unsigned char buf[4];
-    buf[0] = ESC;
-    buf[1] = cmd;
-    buf[2] = (unsigned char)(value & 0xFF);
-    buf[3] = (unsigned char)((value >> 8) & 0xFF);
-    emit(buf, sizeof buf);
-}
-
-/* --- per-option handlers ------------------------------------------------- */
-
-static void cmd_font(const char *name)
-{
-    /* Mapping from Appendix F Table 5 of the PP-404 manual. */
-    static const struct { const char *name; unsigned char n; } map[] = {
-        { "roman",        0 },
-        { "sans",         1 },     /* Letter Gothic */
-        { "letter-gothic",1 },
-        { "courier",      2 },
-        { "prestige",     3 },
-        { "script",       4 },
-        { "ocr-b",        5 },
-        { "ocr-a",        6 },
-        { "orator-c",     7 },
-        { "orator",       8 },
-        { "data-block",  10 },
-        { "data-large",  11 },
-    };
-    for (size_t i = 0; i < sizeof map / sizeof map[0]; i++) {
-        if (strcmp(map[i].name, name) == 0) {
-            emit3(ESC, 'k', map[i].n);
-            return;
-        }
-    }
-    die("--font: unknown family '%s'", name);
-}
-
-static void cmd_quality(const char *name)
-{
-    if (strcmp(name, "draft") == 0)            emit3(ESC, 'x', 0);
-    else if (strcmp(name, "lq") == 0
-          || strcmp(name, "letter") == 0)      emit3(ESC, 'x', 1);
-    else die("--quality: expected 'draft' or 'lq', got '%s'", name);
-}
-
-static void cmd_cpi(const char *s)
-{
-    long n = parse_long(s, 10, 20, "--cpi");
-    switch (n) {
-        case 10: emit2(ESC, 'P'); break;
-        case 12: emit2(ESC, 'M'); break;
-        case 15: emit2(ESC, 'g'); break;
-        default: die("--cpi: only 10, 12 or 15 are supported (got %ld)", n);
-    }
-}
-
-static void cmd_script(const char *name)
-{
-    if (strcmp(name, "super") == 0)        emit3(ESC, 'S', 0);
-    else if (strcmp(name, "sub")   == 0)   emit3(ESC, 'S', 1);
-    else if (strcmp(name, "none")  == 0)   emit2(ESC, 'T');
-    else die("--script: expected super|sub|none, got '%s'", name);
-}
-
-static void cmd_style(const char *name)
-{
-    unsigned char n;
-    if      (strcmp(name, "normal")          == 0) n = 0;
-    else if (strcmp(name, "outline")         == 0) n = 1;
-    else if (strcmp(name, "shadow")          == 0) n = 2;
-    else if (strcmp(name, "outline-shadow")  == 0) n = 3;
-    else { die("--style: unknown style '%s'", name); return; }
-    emit3(ESC, 'q', n);
-}
-
-static void cmd_justify(const char *name)
-{
-    unsigned char n;
-    if      (strcmp(name, "left")   == 0) n = 0;
-    else if (strcmp(name, "center") == 0) n = 1;
-    else if (strcmp(name, "centre") == 0) n = 1;
-    else if (strcmp(name, "right")  == 0) n = 2;
-    else if (strcmp(name, "full")   == 0) n = 3;
-    else { die("--justify: unknown mode '%s'", name); return; }
-    emit3(ESC, 'a', n);
-}
-
-static void cmd_line_spacing(const char *s)
-{
-    if (strcmp(s, "1/8") == 0)      emit2(ESC, '0');
-    else if (strcmp(s, "1/6") == 0) emit2(ESC, '2');
-    else die("--line-spacing: expected '1/6' or '1/8' (got '%s')", s);
-}
-
-static void cmd_lpi(const char *s)
-{
-    long n = parse_long(s, 1, 360, "--lpi");
-    if (n == 6)      emit2(ESC, '2');
-    else if (n == 8) emit2(ESC, '0');
-    else {
-        /* generic: set line spacing to (180/n) in 1/180" units */
-        long units = 180 / n;
-        if (units < 1 || units > 255)
-            die("--lpi: %ld lines per inch is not representable", n);
-        emit3(ESC, '3', (unsigned char)units);
-    }
 }
 
 static void cmd_raw(const char *hex)
 {
     size_t len = strlen(hex);
     if (len == 0) return;
-    /* Allow spaces and 0x prefixes between bytes for readability. */
     unsigned char *buf = malloc(len);
     if (!buf) die("out of memory");
     size_t n = 0;
@@ -228,11 +85,9 @@ static void cmd_raw(const char *hex)
         buf[n++] = (unsigned char)strtol(pair, NULL, 16);
         p += 2;
     }
-    emit(buf, n);
+    escp_emit(out, buf, n);
     free(buf);
 }
-
-/* --- option ids ---------------------------------------------------------- */
 
 enum {
     OPT_BS = 256, OPT_HT, OPT_LF, OPT_VT, OPT_FF, OPT_CR,
@@ -258,7 +113,6 @@ enum {
 };
 
 static const struct option long_opts[] = {
-    /* control codes */
     { "bs",                       no_argument,       0, OPT_BS },
     { "ht",                       no_argument,       0, OPT_HT },
     { "lf",                       no_argument,       0, OPT_LF },
@@ -404,6 +258,8 @@ static void usage(FILE *fp)
 int main(int argc, char **argv)
 {
     out = stdout;
+    escp_set_progname(PROG_NAME);
+
     int c;
     while ((c = getopt_long(argc, argv, "ho:Vi", long_opts, NULL)) != -1) {
         switch (c) {
@@ -416,133 +272,159 @@ int main(int argc, char **argv)
                 break;
             case 'i':
             case OPT_INIT:
-            case OPT_RESET:   emit2(ESC, '@'); break;
+            case OPT_RESET:   escp_init(out); break;
 
-            case OPT_BS:      emit1(0x08); break;
-            case OPT_HT:      emit1(0x09); break;
-            case OPT_LF:      emit1(0x0A); break;
-            case OPT_VT:      emit1(0x0B); break;
-            case OPT_FF:      emit1(0x0C); break;
-            case OPT_CR:      emit1(0x0D); break;
-            case OPT_DW_LINE:        emit1(0x0E); break;
-            case OPT_CANCEL_DW_LINE: emit1(0x14); break;
-            case OPT_CONDENSED:        emit1(0x0F); break;
-            case OPT_CANCEL_CONDENSED: emit1(0x12); break;
-            case OPT_SELECT:   emit1(0x11); break;
-            case OPT_DESELECT: emit1(0x13); break;
-            case OPT_CANCEL:   emit1(0x18); break;
-            case OPT_DEL:      emit1(0x7F); break;
+            case OPT_BS:               escp_bs(out); break;
+            case OPT_HT:               escp_ht(out); break;
+            case OPT_LF:               escp_lf(out); break;
+            case OPT_VT:               escp_vt(out); break;
+            case OPT_FF:               escp_ff(out); break;
+            case OPT_CR:               escp_cr(out); break;
+            case OPT_DW_LINE:          escp_double_width_line(out); break;
+            case OPT_CANCEL_DW_LINE:   escp_cancel_double_width_line(out); break;
+            case OPT_CONDENSED:        escp_condensed(out); break;
+            case OPT_CANCEL_CONDENSED: escp_cancel_condensed(out); break;
+            case OPT_SELECT:           escp_select(out); break;
+            case OPT_DESELECT:         escp_deselect(out); break;
+            case OPT_CANCEL:           escp_cancel(out); break;
+            case OPT_DEL:              escp_del(out); break;
 
-            case OPT_MSB0:       emit2(ESC, '='); break;
-            case OPT_MSB1:       emit2(ESC, '>'); break;
-            case OPT_MSB_CANCEL: emit2(ESC, '#'); break;
+            case OPT_MSB0:       escp_msb_0(out); break;
+            case OPT_MSB1:       escp_msb_1(out); break;
+            case OPT_MSB_CANCEL: escp_msb_cancel(out); break;
 
-            case OPT_PICA:  emit2(ESC, 'P'); break;
-            case OPT_ELITE: emit2(ESC, 'M'); break;
-            case OPT_CPI:   cmd_cpi(optarg); break;
-            case OPT_PROPORTIONAL:
-                emit3(ESC, 'p', parse_on_off(optarg, "--proportional"));
+            case OPT_PICA:  escp_pica(out); break;
+            case OPT_ELITE: escp_elite(out); break;
+            case OPT_CPI:
+                escp_cpi(out, (int)parse_long(optarg, 10, 20, "--cpi"));
                 break;
-            case OPT_FONT:    cmd_font(optarg); break;
-            case OPT_QUALITY: cmd_quality(optarg); break;
+            case OPT_PROPORTIONAL:
+                escp_proportional(out, parse_on_off(optarg, "--proportional"));
+                break;
+            case OPT_FONT: {
+                int n = escp_font_from_name(optarg);
+                if (n < 0) die("--font: unknown family '%s'", optarg);
+                escp_font(out, n);
+                break;
+            }
+            case OPT_QUALITY: {
+                int q = escp_quality_from_name(optarg);
+                if (q < 0) die("--quality: expected 'draft' or 'lq', got '%s'", optarg);
+                escp_quality(out, q);
+                break;
+            }
 
             case OPT_BOLD:
-                emit2(ESC, parse_on_off(optarg, "--bold") ? 'E' : 'F');
+                escp_bold(out, parse_on_off(optarg, "--bold"));
                 break;
             case OPT_DOUBLE_STRIKE:
-                emit2(ESC, parse_on_off(optarg, "--double-strike") ? 'G' : 'H');
+                escp_double_strike(out, parse_on_off(optarg, "--double-strike"));
                 break;
             case OPT_ITALIC:
-                emit2(ESC, parse_on_off(optarg, "--italic") ? '4' : '5');
+                escp_italic(out, parse_on_off(optarg, "--italic"));
                 break;
             case OPT_UNDERLINE:
-                emit3(ESC, '-', parse_on_off(optarg, "--underline"));
+                escp_underline(out, parse_on_off(optarg, "--underline"));
                 break;
-            case OPT_SCRIPT: cmd_script(optarg); break;
+            case OPT_SCRIPT: {
+                int s = escp_script_from_name(optarg);
+                if (s < 0) die("--script: expected super|sub|none, got '%s'", optarg);
+                escp_script(out, s);
+                break;
+            }
             case OPT_DW:
-                emit3(ESC, 'W', parse_on_off(optarg, "--double-width"));
+                escp_double_width(out, parse_on_off(optarg, "--double-width"));
                 break;
             case OPT_DH:
-                emit3(ESC, 'w', parse_on_off(optarg, "--double-height"));
+                escp_double_height(out, parse_on_off(optarg, "--double-height"));
                 break;
-            case OPT_STYLE:  cmd_style(optarg); break;
+            case OPT_STYLE: {
+                int n = escp_style_from_name(optarg);
+                if (n < 0) die("--style: unknown style '%s'", optarg);
+                escp_style(out, n);
+                break;
+            }
             case OPT_MASTER:
-                emit3(ESC, '!', (unsigned char)parse_long(optarg, 0, 255, "--master"));
+                escp_master(out, (int)parse_long(optarg, 0, 255, "--master"));
                 break;
 
-            case OPT_LINE_SPACING: cmd_line_spacing(optarg); break;
+            case OPT_LINE_SPACING:
+                if (strcmp(optarg, "1/8") == 0)      escp_line_spacing_1_8(out);
+                else if (strcmp(optarg, "1/6") == 0) escp_line_spacing_1_6(out);
+                else die("--line-spacing: expected '1/6' or '1/8' (got '%s')", optarg);
+                break;
             case OPT_LS_180:
-                emit3(ESC, '3', (unsigned char)parse_long(optarg, 0, 255, "--line-spacing-180"));
+                escp_line_spacing_180(out, (int)parse_long(optarg, 0, 255, "--line-spacing-180"));
                 break;
             case OPT_LS_360:
-                emit3(ESC, '+', (unsigned char)parse_long(optarg, 0, 255, "--line-spacing-360"));
+                escp_line_spacing_360(out, (int)parse_long(optarg, 0, 255, "--line-spacing-360"));
                 break;
             case OPT_LS_60:
-                emit3(ESC, 'A', (unsigned char)parse_long(optarg, 0, 127, "--line-spacing-60"));
+                escp_line_spacing_60(out, (int)parse_long(optarg, 0, 127, "--line-spacing-60"));
                 break;
             case OPT_FEED_180:
-                emit3(ESC, 'J', (unsigned char)parse_long(optarg, 0, 255, "--feed-180"));
+                escp_feed_180(out, (int)parse_long(optarg, 0, 255, "--feed-180"));
                 break;
             case OPT_REV_FEED_180:
-                emit3(ESC, 'j', (unsigned char)parse_long(optarg, 0, 255, "--reverse-feed-180"));
+                escp_reverse_feed_180(out, (int)parse_long(optarg, 0, 255, "--reverse-feed-180"));
                 break;
             case OPT_PAGE_LINES:
-                emit3(ESC, 'C', (unsigned char)parse_long(optarg, 1, 127, "--page-lines"));
+                escp_page_lines(out, (int)parse_long(optarg, 1, 127, "--page-lines"));
                 break;
-            case OPT_PAGE_INCHES: {
-                long n = parse_long(optarg, 1, 22, "--page-inches");
-                unsigned char buf[4] = { ESC, 'C', 0x00, (unsigned char)n };
-                emit(buf, 4);
+            case OPT_PAGE_INCHES:
+                escp_page_inches(out, (int)parse_long(optarg, 1, 22, "--page-inches"));
                 break;
-            }
             case OPT_SKIP_PERF:
-                emit3(ESC, 'N', (unsigned char)parse_long(optarg, 1, 127, "--skip-perf"));
+                escp_skip_perf(out, (int)parse_long(optarg, 1, 127, "--skip-perf"));
                 break;
-            case OPT_NO_SKIP_PERF: emit2(ESC, 'O'); break;
+            case OPT_NO_SKIP_PERF: escp_no_skip_perf(out); break;
             case OPT_LEFT_MARGIN:
-                emit3(ESC, 'l', (unsigned char)parse_long(optarg, 0, 255, "--left-margin"));
+                escp_left_margin(out, (int)parse_long(optarg, 0, 255, "--left-margin"));
                 break;
             case OPT_RIGHT_MARGIN:
-                emit3(ESC, 'Q', (unsigned char)parse_long(optarg, 1, 255, "--right-margin"));
+                escp_right_margin(out, (int)parse_long(optarg, 1, 255, "--right-margin"));
                 break;
-            case OPT_LPI: cmd_lpi(optarg); break;
+            case OPT_LPI:
+                escp_lpi(out, (int)parse_long(optarg, 1, 360, "--lpi"));
+                break;
 
             case OPT_HPOS:
-                emit_word('$', parse_long(optarg, 0, 65535, "--h-pos"));
+                escp_h_pos(out, (int)parse_long(optarg, 0, 65535, "--h-pos"));
                 break;
-            case OPT_HREL: {
-                long v = parse_long(optarg, -32768, 32767, "--h-rel");
-                emit_word('\\', v & 0xFFFF);
+            case OPT_HREL:
+                escp_h_rel(out, (int)parse_long(optarg, -32768, 32767, "--h-rel"));
                 break;
-            }
             case OPT_VPOS:
-                emit_escp2_word('V', parse_long(optarg, 0, 65535, "--v-pos"));
+                escp_v_pos(out, (int)parse_long(optarg, 0, 65535, "--v-pos"));
                 break;
-            case OPT_VREL: {
-                long v = parse_long(optarg, -32768, 32767, "--v-rel");
-                emit_escp2_word('v', v & 0xFFFF);
+            case OPT_VREL:
+                escp_v_rel(out, (int)parse_long(optarg, -32768, 32767, "--v-rel"));
                 break;
-            }
 
-            case OPT_UPPER_PRINT: emit2(ESC, '6'); break;
-            case OPT_UPPER_CTRL:  emit2(ESC, '7'); break;
+            case OPT_UPPER_PRINT: escp_upper_print(out); break;
+            case OPT_UPPER_CTRL:  escp_upper_control(out); break;
             case OPT_COUNTRY:
-                emit3(ESC, 'R', (unsigned char)parse_long(optarg, 0, 15, "--country"));
+                escp_country(out, (int)parse_long(optarg, 0, 15, "--country"));
                 break;
             case OPT_CHARSET:
-                emit3(ESC, 't', (unsigned char)parse_long(optarg, 0, 3, "--charset"));
+                escp_charset(out, (int)parse_long(optarg, 0, 3, "--charset"));
                 break;
 
-            case OPT_CLEAR_HTABS: emit3(ESC, 'D', NUL); break;
-            case OPT_CLEAR_VTABS: emit3(ESC, 'B', NUL); break;
+            case OPT_CLEAR_HTABS: escp_clear_htabs(out); break;
+            case OPT_CLEAR_VTABS: escp_clear_vtabs(out); break;
             case OPT_UNIDIRECTIONAL:
-                emit3(ESC, 'U', parse_on_off(optarg, "--unidirectional"));
+                escp_unidirectional(out, parse_on_off(optarg, "--unidirectional"));
                 break;
-            case OPT_UNI_LINE: emit2(ESC, '<'); break;
-            case OPT_JUSTIFY:  cmd_justify(optarg); break;
+            case OPT_UNI_LINE: escp_uni_line(out); break;
+            case OPT_JUSTIFY: {
+                int j = escp_justify_from_name(optarg);
+                if (j < 0) die("--justify: unknown mode '%s'", optarg);
+                escp_justify(out, j);
+                break;
+            }
 
             case OPT_RAW:  cmd_raw(optarg); break;
-            case OPT_TEXT: emit((const unsigned char *)optarg, strlen(optarg)); break;
+            case OPT_TEXT: escp_text(out, optarg); break;
 
             case '?':
             default:
@@ -551,7 +433,6 @@ int main(int argc, char **argv)
         }
     }
 
-    /* If the user gave no options at all, show help. */
     if (optind == 1 && argc == 1) {
         usage(stderr);
         return 2;

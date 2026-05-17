@@ -1,0 +1,227 @@
+.\" Manpage for escpmd.
+.\" Contact solutions@agilemindswork.uk to fix typos.
+.TH ESCPMD 1 "May 2026" "escpmd 1.0.0" "User Commands"
+.SH NAME
+escpmd \- render Markdown to an Epson ESC/P 2 byte stream
+.SH SYNOPSIS
+.B escpmd
+.RI [ OPTIONS ]
+.RI [ FILE .\|.\|.]
+.SH DESCRIPTION
+.B escpmd
+is a Unix-style filter that reads a Markdown document and writes the
+equivalent ESC/P 2 byte stream to standard output (or to the file given
+with
+.BR -o ).
+With no
+.I FILE
+arguments, the document is read from standard input.  Multiple files
+are concatenated and separated by a form-feed.
+.PP
+The output is the same flavour of ESC/P emitted by
+.BR escp (1)
+\(em both binaries share the same code generator.  The result is meant
+to be piped directly to a dot-matrix printer or capture file:
+.PP
+.RS
+.nf
+escpmd README.md | lp -d pp404
+cat doc.md | escpmd --cpi 12 --quality lq > pp404.bin
+.fi
+.RE
+.PP
+Markdown is parsed with the bundled
+.B md4c
+library, configured for the GitHub Flavoured dialect (CommonMark plus
+tables, strikethrough and permissive autolinks).
+.SH OPTIONS
+.SS Output
+.TP
+.B \-o, \-\-output \fIFILE\fR
+Write the output bytes to \fIFILE\fR instead of standard output.
+.TP
+.B \-i, \-\-no\-init
+Skip the prologue.  By default, escpmd emits
+.B ESC @
+followed by the body-style options (quality, cpi, font, lpi, margins)
+at document start.  Use this flag when the surrounding pipeline already
+emits an initialisation sequence (typically via
+.BR escp (1)).
+.TP
+.B \-F, \-\-no\-ff
+Skip the trailing form-feed and final
+.BR "ESC @" .
+.SS Body style
+These options control the document's body text (everything that is not
+a heading, code block, list bullet, etc.).
+.TP
+.B \-\-cpi \fIN\fR
+Body pitch in characters per inch.  Accepts 10 (default), 12 or 15.
+.TP
+.B \-\-font \fINAME\fR
+Body font family.  Same names as
+.BR "escp \-\-font" :
+.IR roman ,
+.IR sans ,
+.IR courier ,
+.IR prestige ,
+.IR script ,
+.IR ocr-a ,
+.IR ocr-b ,
+.IR orator ,
+.IR orator-c ,
+.IR data-block ,
+.IR data-large .
+Default is
+.IR roman .
+.TP
+.B \-\-quality \fIdraft|lq\fR
+Body print quality.  Default is
+.IR lq .
+Note that fenced code blocks always switch to
+.I draft
+quality regardless of this setting.
+.TP
+.B \-\-lpi \fIN\fR
+Lines per inch.  Default is 6.
+.TP
+.B \-\-left\-margin \fIN\fR, \-\-right\-margin \fIN\fR
+Set printer left/right margin in character columns at the active pitch.
+By default no margin is emitted.  When both are set, escpmd also uses
+\fIright - left\fR as the printable width for software word\(hywrap and
+the thematic\(hybreak rule (unless overridden by
+.BR \-\-page\-width ).
+The hardware margins are still written via
+.BR "ESC l" / "ESC Q"
+in the prologue as a safety net so the printer firmware will also
+enforce them.
+.TP
+.B \-\-page\-width \fIN\fR
+Explicit printable width in character columns at the body pitch.
+Drives word\(hywrap of paragraphs and the width of the thematic\(hybreak
+rule.  Overrides any width derived from
+.BR \-\-left\-margin / \-\-right\-margin .
+Default is unset (no software wrap; long lines flow to the printer
+unbroken and are wrapped in hardware if a right margin was set).
+.TP
+.B \-\-charset \fINAME\fR
+Output character encoding (anything
+.BR iconv (3)
+accepts: \fIISO-8859-1\fR, \fIISO-8859-15\fR, \fIASCII\fR, \fICP437\fR,
+…). Default is \fIISO-8859-1\fR. UTF-8 input is converted to this
+encoding with \fB//TRANSLIT\fR fallback; un-mappable codepoints become
+\fB?\fR.
+.TP
+.B \-\-smileys
+Expand GitHub-style emoji shortcodes (\fB:smile:\fR, \fB:wink:\fR,
+\fB:heart:\fR, …) to ASCII equivalents. See
+.IR docs/escpmd-mapping.md
+for the full table. Unknown shortcodes are passed through verbatim.
+.TP
+.B \-\-link\-urls
+After the underlined link text, also print \fB " (url)"\fR for
+explicit references like \fB[text](url)\fR. By default escpmd prints
+just the underlined text. Autolinks (\fB<https://…>\fR) always print as
+the underlined URL.
+.SS Information
+.TP
+.B \-h, \-\-help
+Print usage and exit.
+.TP
+.B \-V, \-\-version
+Print version and exit.
+.SH MARKDOWN MAPPING
+.B escpmd
+translates each Markdown construct to a fixed ESC/P sequence.  The
+complete table lives in
+.IR docs/escpmd-mapping.md ;
+the highlights are:
+.TP
+\fBHeadings\fR
+H1 = double-width + double-height + bold.
+H2 = double-width + bold.
+H3 = bold + underline.
+H4\(enH6 = bold.
+.TP
+\fBInline emphasis\fR
+\fB**strong**\fR \(rA bold (\fBESC E\fR / \fBESC F\fR).
+\fB*emphasis*\fR \(rA italic (\fBESC 4\fR / \fBESC 5\fR).
+\fB~~strike~~\fR \(rA underline (ESC/P has no strikethrough).
+.TP
+\fBCode\fR
+Inline \fB`code`\fR \(rA Courier + condensed.
+Fenced code blocks \(rA Courier + condensed + draft quality.
+.TP
+\fBLists\fR
+\fB- item\fR \(rA `*\~item' at the appropriate indent.
+\fB1. item\fR \(rA `1.\~item' with a counter per nesting level.
+.TP
+\fBBlock quote\fR
+Body is italicised.
+.TP
+\fBThematic break\fR (\fB---\fR)
+Emits a line of 72 hyphens followed by LF.
+.TP
+\fBLinks\fR
+The visible text is underlined.  Autolinks (\fB<https://x>\fR) print
+the underlined URL.  Pass
+.B \-\-link\-urls
+to also write \fB\~(url)\fR after the underlined text for explicit
+references.
+.TP
+\fBImages\fR
+Alt text is printed in italic.
+.TP
+\fBTables\fR
+Cells are separated by \fB\~|\~\fR; header cells are bold.
+.TP
+\fBUTF\(hy8\fR
+Input is decoded by md4c, then run through
+.BR iconv (3)
+into the target encoding chosen by
+.BR \-\-charset
+(default
+.IR ISO-8859-1 ).
+The \fB//TRANSLIT\fR suffix is appended when the platform's iconv
+supports it, so e.g. U+2014 EM DASH becomes a hyphen and U+00E9 stays
+as 0xE9 in Latin\(hy1.  Un-mappable codepoints become `?'.
+.SH EXAMPLES
+Print a Markdown document with the bundled defaults:
+.PP
+.RS
+.nf
+escpmd README.md | lp -d pp404
+.fi
+.RE
+.PP
+Use the same printer state established by \fBescp\fR earlier in the
+pipeline:
+.PP
+.RS
+.nf
+{
+    escp --init --left-margin 6 --cpi 12
+    escpmd --no-init --no-ff doc.md
+    escp --ff
+} > /dev/usb/lp0
+.fi
+.RE
+.PP
+Print a small notebook of several files, one per page:
+.PP
+.RS
+.nf
+escpmd chapter*.md > book.bin
+.fi
+.RE
+.SH EXIT STATUS
+0 on success, 2 on any error (bad option, missing file, write error,
+markdown parser failure).
+.SH SEE ALSO
+.BR escp (1),
+.IR docs/escpmd-mapping.md ,
+.UR https://github.com/mity/md4c
+md4c Markdown parser
+.UE .
+.SH AUTHOR
+Mark Wickens <solutions@agilemindswork.uk>

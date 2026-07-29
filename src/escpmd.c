@@ -549,8 +549,10 @@ static int calculate_table_width(int num_cols, const int *col_widths)
     return total;
 }
 
-/* Maximum column width for wrapping (characters). */
-#define MAX_COL_WIDTH 30
+/* Maximum column width when table doesn't fit (characters). */
+#define MAX_COL_WIDTH_CONSTRAINED 30
+/* Maximum column width when space is available (characters). */
+#define MAX_COL_WIDTH_UNCONSTRAINED 100
 
 /* Structure to hold wrapped lines for a cell. */
 typedef struct {
@@ -744,20 +746,65 @@ static void flush_table(state_t *s)
         return;
     }
 
-    /* Measure column widths and apply max width constraint. */
+    /* Measure natural column widths. */
     int *col_widths = calloc((size_t)tbl->num_cols, sizeof(int));
     if (!col_widths) die("out of memory");
     measure_table_columns(s, tbl, col_widths);
 
-    /* Constrain column widths to MAX_COL_WIDTH. */
+    /* Calculate available width and distribute space intelligently. */
+    int available_width = get_effective_page_width(s, s->body_cpi);
+
+    /* First cap at unconstrained max and check if it fits. */
     for (int col = 0; col < tbl->num_cols; col++) {
-        if (col_widths[col] > MAX_COL_WIDTH)
-            col_widths[col] = MAX_COL_WIDTH;
+        if (col_widths[col] > MAX_COL_WIDTH_UNCONSTRAINED)
+            col_widths[col] = MAX_COL_WIDTH_UNCONSTRAINED;
     }
 
     int table_width = calculate_table_width(tbl->num_cols, col_widths);
 
-    /* Determine style adjustments. */
+    /* If table doesn't fit, distribute available space intelligently. */
+    if (table_width > available_width) {
+        /* Calculate separator overhead. */
+        int separator_width = (tbl->num_cols - 1) * 3;
+        int space_for_content = available_width - separator_width;
+
+        /* Count columns wider than constrained limit. */
+        int wide_cols = 0;
+        int narrow_total = 0;
+        for (int col = 0; col < tbl->num_cols; col++) {
+            if (col_widths[col] > MAX_COL_WIDTH_CONSTRAINED) {
+                wide_cols++;
+            } else {
+                narrow_total += col_widths[col];
+            }
+        }
+
+        /* Distribute remaining space to wide columns. */
+        if (wide_cols > 0 && space_for_content > narrow_total) {
+            int space_for_wide = space_for_content - narrow_total;
+            int width_per_wide = space_for_wide / wide_cols;
+
+            /* Ensure each wide column gets at least CONSTRAINED limit. */
+            if (width_per_wide < MAX_COL_WIDTH_CONSTRAINED)
+                width_per_wide = MAX_COL_WIDTH_CONSTRAINED;
+
+            for (int col = 0; col < tbl->num_cols; col++) {
+                if (col_widths[col] > MAX_COL_WIDTH_CONSTRAINED) {
+                    col_widths[col] = width_per_wide;
+                }
+            }
+        } else {
+            /* Fallback: apply blanket constraint. */
+            for (int col = 0; col < tbl->num_cols; col++) {
+                if (col_widths[col] > MAX_COL_WIDTH_CONSTRAINED)
+                    col_widths[col] = MAX_COL_WIDTH_CONSTRAINED;
+            }
+        }
+
+        table_width = calculate_table_width(tbl->num_cols, col_widths);
+    }
+
+    /* Determine style adjustments (CPI, condensed). */
     int temp_cpi;
     int use_condensed = determine_table_style(s, table_width, &temp_cpi);
 

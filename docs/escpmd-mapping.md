@@ -104,10 +104,18 @@ properly aligned and the table can be auto-sized to fit the page width.
 
 **Column alignment:**
 - Each column is measured to find its maximum cell width
-- Column widths are constrained to a maximum of 30 characters
 - Cells are padded with spaces to align to their column width
 - Columns are separated with `" | "` (3 characters)
 - Header cells are rendered in bold
+
+**Intelligent column width distribution:**
+- If table fits in available width: columns use natural widths (max 100 chars each)
+- If table is too wide:
+  - Narrow columns (≤30 chars) keep their natural width
+  - Wide columns share the remaining space equally
+  - Each wide column gets at least 30 characters
+  - Example: 132 chars available, 2 narrow columns (15+20 chars), 1 wide column
+    → wide column gets 132 - 15 - 20 - 6 (separators) = 91 chars
 
 **Word wrapping:**
 - Cell content that exceeds the column width is automatically wrapped

@@ -37,7 +37,7 @@ pipeline that manages the printer state itself (typically via
 | Thematic break (`---`) | 72 × `-` + `LF`                                                                        |
 | Fenced code block      | `ESC k 02` + `SI` + `ESC x 0` … `LF`-terminated lines … `ESC x 1` + `DC2` + `ESC k 00` |
 | HTML block             | dropped                                                                                |
-| Table                  | Plain text rows with `""` separators; header row bold                                  |
+| Table                  | Courier font; column-aligned; word-wrapped; headers bold; auto-sized to fit page   |
 
 ## Inline constructs
 
@@ -92,6 +92,46 @@ italic* end**` correctly leaves bold on across the inner italic span:
 ```
 ESC E "bold " ESC 4 "and italic" ESC 5 " end" ESC F
 ```
+
+## Table rendering and auto-sizing
+
+Tables are **buffered and measured** before emission so columns can be
+properly aligned and the table can be auto-sized to fit the page width.
+
+**Courier font:**
+- All tables are rendered in Courier font (`ESC k 02`)
+- The original body font is restored after the table (`ESC k 00`)
+
+**Column alignment:**
+- Each column is measured to find its maximum cell width
+- Column widths are constrained to a maximum of 30 characters
+- Cells are padded with spaces to align to their column width
+- Columns are separated with `" | "` (3 characters)
+- Header cells are rendered in bold
+
+**Word wrapping:**
+- Cell content that exceeds the column width is automatically wrapped
+- Wrapping occurs at word boundaries
+- Multi-line cells create multi-line rows
+- All cells in a row align vertically across wrapped lines
+
+**Auto-sizing strategy:**
+
+When a `--page-width` or margin-derived width is known, `escpmd`
+automatically adjusts the table style to fit:
+
+1. Try current CPI (no changes)
+2. If too wide: enable condensed mode (`SI`)
+3. If still too wide: switch to 12 CPI
+4. If still too wide: switch to 12 CPI + condensed
+5. If still too wide: switch to 15 CPI
+6. If still too wide: switch to 15 CPI + condensed (and let it overflow)
+
+After the table, the original CPI and condensed state are restored.
+
+**Without a page width:**
+Tables are sized for the default CPI assumption (10 CPI = 80 columns,
+12 CPI = 96 columns, 15 CPI = 120 columns).
 
 ## UTF-8 → target encoding (iconv)
 

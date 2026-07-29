@@ -678,11 +678,11 @@ static int get_effective_page_width(state_t *s, int cpi)
     /* If user set page_width explicitly, use it as-is (assumes it matches their CPI). */
     if (s->page_width > 0) return s->page_width;
 
-    /* Otherwise estimate based on CPI (assuming 8" printable width). */
-    if (cpi == 10) return 80;
-    if (cpi == 12) return 96;
-    if (cpi == 15) return 120;
-    return 80;  /* fallback */
+    /* Otherwise assume wide-carriage width (~13.2" printable width). */
+    if (cpi == 10) return 132;
+    if (cpi == 12) return 158;
+    if (cpi == 15) return 198;
+    return 132;  /* fallback */
 }
 
 /* Determine table rendering strategy: which CPI and whether to use condensed.

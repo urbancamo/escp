@@ -130,8 +130,9 @@ automatically adjusts the table style to fit:
 After the table, the original CPI and condensed state are restored.
 
 **Without a page width:**
-Tables are sized for the default CPI assumption (10 CPI = 80 columns,
-12 CPI = 96 columns, 15 CPI = 120 columns).
+Tables are sized for wide-carriage printer assumptions (10 CPI = 132 columns,
+12 CPI = 158 columns, 15 CPI = 198 columns). Set `--page-width` or margins
+to override for narrow-carriage printers.
 
 ## UTF-8 → target encoding (iconv)
 
